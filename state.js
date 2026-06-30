@@ -89,7 +89,12 @@ function getElById(elId) {
     const bldg = state.buildings.find(b => b.id === f.buildingId);
     const buildingName = bldg ? bldg.name : 'Default Building';
     for (const b of f.blocks) {
-      const el = b.elements.find(e => e.id === elId);
+      const el = b.elements.find(e => {
+        if (String(e.id) === String(elId)) return true;
+        const numId = parseInt(e.id, 10);
+        if (!isNaN(numId) && numId === Number(elId)) return true;
+        return false;
+      });
       if (el) return { el, floorId: f.id, floorName: f.name, blockId: b.id, blockName: b.name, buildingId: f.buildingId, buildingName };
     }
   }

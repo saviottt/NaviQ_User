@@ -760,8 +760,10 @@ function generatePathDirections(path, edges) {
 
 function runPathFinder() {
   clearPathHighlights();
-  const fromId = parseInt(document.getElementById('pfFrom').value);
-  const toId = parseInt(document.getElementById('pfTo').value);
+  const fromVal = document.getElementById('pfFrom').value;
+  const toVal = document.getElementById('pfTo').value;
+  const fromId = isNaN(Number(fromVal)) ? fromVal : Number(fromVal);
+  const toId = isNaN(Number(toVal)) ? toVal : Number(toVal);
 
   if (fromId === toId) {
     document.getElementById('pathResult').innerHTML = '<div class="path-empty">Start and end are the same room!</div>';
@@ -769,7 +771,10 @@ function runPathFinder() {
   }
 
   const stopSelects = document.querySelectorAll('.pf-stop-select');
-  const stopIds = Array.from(stopSelects).map(sel => parseInt(sel.value));
+  const stopIds = Array.from(stopSelects).map(sel => {
+    const val = sel.value;
+    return isNaN(Number(val)) ? val : Number(val);
+  });
   const sequence = [fromId, ...stopIds, toId];
 
   const adj = buildGraph();
@@ -800,27 +805,30 @@ function runPathFinder() {
   if (!result) {
     const fromRec = getElById(fromId);
     const toRec = getElById(toId);
-    const sameFloor = fromRec && toRec && fromRec.floorId === toRec.floorId;
+    const sameFloor = fromRec && toRec && String(fromRec.floorId) === String(toRec.floorId);
 
     let reason = '';
     let fix = '';
 
-    if (!sameFloor) {
-      const fromFloorHasLinks = state.stairLinks.some(lk => lk.fromFloorId === fromRec?.floorId || lk.toFloorId === fromRec?.floorId)
-        || state.universalLinks.some(lk => lk.fromFloorId === fromRec?.floorId || lk.toFloorId === fromRec?.floorId);
-      const toFloorHasLinks = state.stairLinks.some(lk => lk.fromFloorId === toRec?.floorId || lk.toFloorId === toRec?.floorId)
-        || state.universalLinks.some(lk => lk.fromFloorId === toRec?.floorId || lk.toFloorId === toRec?.floorId);
+    if (!fromRec || !toRec) {
+      reason = 'Start or destination location not found on the map.';
+      fix = 'Please select a valid location from the search list.';
+    } else if (String(fromRec.floorId) !== String(toRec.floorId)) {
+      const fromFloorHasLinks = state.stairLinks.some(lk => String(lk.fromFloorId) === String(fromRec.floorId) || String(lk.toFloorId) === String(fromRec.floorId))
+        || state.universalLinks.some(lk => String(lk.fromFloorId) === String(fromRec.floorId) || String(lk.toFloorId) === String(fromRec.floorId));
+      const toFloorHasLinks = state.stairLinks.some(lk => String(lk.fromFloorId) === String(toRec.floorId) || String(lk.toFloorId) === String(toRec.floorId))
+        || state.universalLinks.some(lk => String(lk.fromFloorId) === String(toRec.floorId) || String(lk.toFloorId) === String(toRec.floorId));
       const totalLinks = state.stairLinks.length + state.universalLinks.length;
 
       if (totalLinks === 0) {
         reason = 'No connections exist between any floors.';
         fix = 'Select any element on the canvas → click <b>🔗 Link to Any Element</b> in the Properties panel to connect elements across floors. You can also use Staircase, Elevator, or Stair Hall linking.';
       } else if (!fromFloorHasLinks) {
-        reason = `<b>${fromRec?.floorName}</b> has no cross-floor links.`;
-        fix = `Go to <b>${fromRec?.floorName}</b>, select any element → click <b>🔗 Link to Any Element</b> to connect it to an element on another floor.`;
+        reason = `<b>${fromRec.floorName}</b> has no cross-floor links.`;
+        fix = `Go to <b>${fromRec.floorName}</b>, select any element → click <b>🔗 Link to Any Element</b> to connect it to an element on another floor.`;
       } else if (!toFloorHasLinks) {
-        reason = `<b>${toRec?.floorName}</b> has no cross-floor links.`;
-        fix = `Go to <b>${toRec?.floorName}</b>, select any element → click <b>🔗 Link to Any Element</b> to connect it to an element on another floor.`;
+        reason = `<b>${toRec.floorName}</b> has no cross-floor links.`;
+        fix = `Go to <b>${toRec.floorName}</b>, select any element → click <b>🔗 Link to Any Element</b> to connect it to an element on another floor.`;
       } else {
         reason = 'The linked elements on each floor are not connected to the rooms in the path.';
         fix = 'Make sure the linked elements are touching (overlapping) corridors or rooms on their floor, forming a connected chain.';
