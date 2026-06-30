@@ -532,8 +532,7 @@ function generateSteps(path, edges) {
     // Door
     if (type === 'door' || type === 'entry_exit') {
       const displayTxt = `Go through <strong>${el.name || (type === 'door' ? 'door' : 'entrance')}</strong>`;
-      const stepEl = addStep(stepsContainer, stepNum++, displayTxt, null, rec.floorId, elId);
-      navSteps.push({ text: displayTxt, floorId: rec.floorId, elId, domEl: stepEl });
+      addStep(stepsContainer, stepNum++, displayTxt, null, rec.floorId, elId);
       continue;
     }
 
@@ -546,8 +545,7 @@ function generateSteps(path, edges) {
           const nextRec = window.findElementById(path[i + 1]);
           const dir = getDirectionText(prevRec.el, el, nextRec ? nextRec.el : null);
           if (dir && dir !== lastDirection) {
-            const stepEl = addStep(stepsContainer, stepNum++, dir, null, rec.floorId, elId);
-            navSteps.push({ text: dir, floorId: rec.floorId, elId, domEl: stepEl });
+            addStep(stepsContainer, stepNum++, dir, null, rec.floorId, elId);
             lastDirection = dir;
           }
         }
@@ -559,8 +557,7 @@ function generateSteps(path, edges) {
     // Regular room (not start/end) — usually a pass-through
     if (!type.startsWith('corridor') && type !== 'waypoint' && type !== 'bridge') {
       const displayTxt = `Pass through <strong>${el.name || el.type}</strong>`;
-      const stepEl = addStep(stepsContainer, stepNum++, displayTxt, null, rec.floorId, elId);
-      navSteps.push({ text: displayTxt, floorId: rec.floorId, elId, domEl: stepEl });
+      addStep(stepsContainer, stepNum++, displayTxt, null, rec.floorId, elId);
     }
   }
 
