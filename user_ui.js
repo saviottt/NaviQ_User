@@ -711,6 +711,13 @@ function setupStartLocationManual() {
     });
   }
 
+  const closeBtn = document.getElementById('closeStartLocationModalBtn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      closeStartLocationModal();
+    });
+  }
+
   const cancelBtn = document.getElementById('cancelStartLocationBtn');
   if (cancelBtn) {
     cancelBtn.addEventListener('click', () => {
@@ -724,30 +731,112 @@ function setupStartLocationManual() {
       confirmStartLocation();
     });
   }
+
+  const searchInput = document.getElementById('startLocationSearchInput');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      renderStartLocationModalList(searchInput.value);
+    });
+  }
 }
 
-function openStartLocationModal() {
-  const select = document.getElementById('startLocationSelect');
-  if (!select) return;
-  select.innerHTML = '';
+let modalSelectedElId = null;
 
-  // Populate dropdown with all searchable locations
-  searchable.forEach(res => {
-    const opt = document.createElement('option');
-    opt.value = res.id;
-    // Label: "Room Name (Floor Name · Building Name)"
-    opt.textContent = `${res.name} (${res.floorName}${res.buildingName ? ' · ' + res.buildingName : ''})`;
-    // Select the current location if it matches
-    if (String(res.id) === String(window.userState.currentLocationElId)) {
-      opt.selected = true;
-    }
-    select.appendChild(opt);
-  });
+function openStartLocationModal() {
+  const searchInput = document.getElementById('startLocationSearchInput');
+  if (searchInput) {
+    searchInput.value = '';
+  }
+
+  modalSelectedElId = window.userState.currentLocationElId;
+  renderStartLocationModalList('');
 
   const modal = document.getElementById('startLocationModal');
   if (modal) {
     modal.classList.remove('hidden');
     if (window.lucide) window.lucide.createIcons();
+  }
+}
+
+function renderStartLocationModalList(query) {
+  const container = document.getElementById('startLocationSearchList');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const cleanQuery = (query || '').toLowerCase().trim();
+
+  // Filter searchable items
+  const filtered = searchable.filter(item => {
+    if (!cleanQuery) return true;
+    return item.name.toLowerCase().includes(cleanQuery) ||
+           (item.floorName || '').toLowerCase().includes(cleanQuery) ||
+           (item.buildingName || '').toLowerCase().includes(cleanQuery);
+  });
+
+  if (filtered.length === 0) {
+    const emptyMsg = document.createElement('div');
+    emptyMsg.style.padding = '20px';
+    emptyMsg.style.textAlign = 'center';
+    emptyMsg.style.color = 'var(--text-muted)';
+    emptyMsg.style.fontSize = '13px';
+    emptyMsg.textContent = 'No matching locations found';
+    container.appendChild(emptyMsg);
+
+    const confirmBtn = document.getElementById('confirmStartLocationBtn');
+    if (confirmBtn) {
+      confirmBtn.classList.add('disabled');
+      confirmBtn.disabled = true;
+    }
+    return;
+  }
+
+  filtered.forEach(res => {
+    const div = document.createElement('div');
+    div.className = `modal-list-item${String(res.id) === String(modalSelectedElId) ? ' selected' : ''}`;
+
+    const iconDiv = document.createElement('div');
+    iconDiv.className = `modal-list-item-icon ${res.type === 'facility' ? 'facility' : res.type === 'stair' ? 'stairs' : 'room'}`;
+    iconDiv.innerHTML = res.type === 'facility' ? '🚽' : res.type === 'stair' ? '🪜' : '🚪';
+
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'modal-list-item-info';
+
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'modal-list-item-name';
+    nameDiv.textContent = res.name;
+
+    const subDiv = document.createElement('div');
+    subDiv.className = 'modal-list-item-sub';
+    subDiv.textContent = `${res.floorName}${res.buildingName ? ' · ' + res.buildingName : ''}`;
+
+    infoDiv.append(nameDiv, subDiv);
+    div.append(iconDiv, infoDiv);
+
+    div.addEventListener('click', () => {
+      modalSelectedElId = res.id;
+
+      container.querySelectorAll('.modal-list-item').forEach(el => el.classList.remove('selected'));
+      div.classList.add('selected');
+
+      const confirmBtn = document.getElementById('confirmStartLocationBtn');
+      if (confirmBtn) {
+        confirmBtn.classList.remove('disabled');
+        confirmBtn.disabled = false;
+      }
+    });
+
+    container.appendChild(div);
+  });
+
+  const confirmBtn = document.getElementById('confirmStartLocationBtn');
+  if (confirmBtn) {
+    if (modalSelectedElId) {
+      confirmBtn.classList.remove('disabled');
+      confirmBtn.disabled = false;
+    } else {
+      confirmBtn.classList.add('disabled');
+      confirmBtn.disabled = true;
+    }
   }
 }
 
@@ -757,38 +846,32 @@ function closeStartLocationModal() {
 }
 
 function confirmStartLocation() {
-  const select = document.getElementById('startLocationSelect');
-  if (!select) return;
+  if (!modalSelectedElId) return;
 
-  const selectedId = parseInt(select.value, 10);
+  const selectedId = parseInt(modalSelectedElId, 10);
   if (isNaN(selectedId)) return;
 
-  // Update state
   window.userState.currentLocationElId = selectedId;
-  window.userState.qrParsed = false; // Mark as manual selection
+  window.userState.qrParsed = false;
 
-  // Find the floor of this element and switch to it
   const rec = window.findElementById(selectedId);
   if (rec) {
     window.userState.currentFloorId = rec.floorId;
     const floorInfo = window.state.floors.find(f => f.id === rec.floorId);
     window.userState.currentBuildingId = floorInfo ? (floorInfo.buildingId || null) : null;
-    
+
     window.renderFloor(rec.floorId);
     setupFloorSwitcher();
     setupBlockSwitcher();
-    // Center map on this element
     if (window.centerOnElement) {
       setTimeout(() => window.centerOnElement(selectedId), 200);
     }
   }
 
-  // Refresh UI
   updateLocationUI();
   closeStartLocationModal();
   window.showUserToast('Start location updated');
 
-  // Recalculate route if destination is active
   if (destinationId) {
     calculateRoute();
   }

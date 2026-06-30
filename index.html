@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>NaviQ — Indoor Navigation</title>
+    <meta name="description" content="NaviQ indoor navigation — scan a QR code, find your way." />
+    <link rel="stylesheet" href="user.css?v=4" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body>
+    <!-- Loading Splash -->
+    <div class="splash-screen" id="splashScreen">
+        <div class="splash-logo">
+            <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+                <circle cx="28" cy="28" r="26" stroke="url(#grad1)" stroke-width="3"/>
+                <path d="M28 14L28 38M28 38L20 30M28 38L36 30" stroke="url(#grad1)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <defs><linearGradient id="grad1" x1="0" y1="0" x2="56" y2="56"><stop stop-color="#3b82f6"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
+            </svg>
+        </div>
+        <div class="splash-text">NaviQ</div>
+        <div class="splash-sub">Indoor Navigation</div>
+        <div class="splash-loader"><div class="loader-bar"></div></div>
+    </div>
+
+    <!-- Top Search Bar -->
+    <div class="top-bar" id="topBar">
+        <div class="top-search-bar">
+            <i data-lucide="search" class="search-icon"></i>
+            <input type="text" id="searchInput" placeholder="Where do you want to go?" autocomplete="off" />
+            <button id="clearSearchBtn" class="clear-btn hidden"><i data-lucide="x"></i></button>
+        </div>
+        <button class="top-loc-btn" id="setLocationBtnTop" title="Set my location manually">
+            <i data-lucide="map-pin"></i>
+        </button>
+    </div>
+    <div id="searchDropdown" class="search-dropdown hidden"></div>
+
+    <!-- Block Switcher -->
+    <div class="block-switcher" id="blockSwitcher"></div>
+
+    <!-- Map Container -->
+    <main class="map-container" id="mapContainer">
+        <div id="svgWrapper" class="svg-wrapper"></div>
+    </main>
+
+    <!-- Floor Switcher -->
+    <div class="floor-switcher" id="floorSwitcher"></div>
+
+    <!-- Recenter Button -->
+    <button class="recenter-btn" id="recenterBtn" title="Re-center map">
+        <i data-lucide="locate"></i>
+    </button>
+
+    <!-- Bottom Sheet -->
+    <div class="bottom-sheet collapsed" id="bottomSheet">
+        <div class="bottom-sheet-handle" id="sheetHandle"></div>
+        <div class="bottom-sheet-content">
+            <!-- Location Card (default state) -->
+            <div id="locationCard">
+                <div class="location-header">
+                    <div class="you-are-here-badge" id="youAreHereBadge">
+                        <span class="pulse-dot"></span> You are here
+                    </div>
+                </div>
+                <h3 id="sheetTitle">Loading Map...</h3>
+                <p id="sheetSubtitle" class="subtitle">Please wait</p>
+            </div>
+
+            <!-- Route Details (shown after search) -->
+            <div id="routeCard" class="route-card hidden">
+                <div class="route-header">
+                    <div class="route-endpoints">
+                        <div class="endpoint start-point clickable-endpoint" id="changeStartFromRouteBtn" title="Change starting location">
+                            <span class="endpoint-dot start"></span>
+                            <span id="routeFromText">Your Location</span>
+                            <i data-lucide="edit-2" class="edit-endpoint-icon"></i>
+                        </div>
+                        <div class="endpoint-line"></div>
+                        <div class="endpoint end-point">
+                            <span class="endpoint-dot end"></span>
+                            <span id="routeToText">Destination</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation HUD (Step-by-step controller) -->
+                <div class="nav-hud" id="navHud" style="display:none;">
+                    <button class="nav-hud-btn" id="navPrevBtn" title="Previous step">
+                        <i data-lucide="chevron-left"></i>
+                    </button>
+                    <div class="nav-hud-content">
+                        <span class="nav-hud-step-num" id="navStepNumText">Step 1 of 5</span>
+                        <p class="nav-hud-instruction" id="navInstructionText">Start navigation</p>
+                    </div>
+                    <button class="nav-hud-btn primary" id="navNextBtn" title="Next step">
+                        <span>Next</span> <i data-lucide="chevron-right"></i>
+                    </button>
+                </div>
+
+                <div class="route-meta">
+                    <div class="meta-chip">
+                        <i data-lucide="clock"></i>
+                        <span id="routeTimeText">--</span>
+                    </div>
+                    <div class="meta-chip">
+                        <i data-lucide="footprints"></i>
+                        <span id="routeDistText">--</span>
+                    </div>
+                    <div class="meta-chip" id="routeFloorsChip" style="display:none;">
+                        <i data-lucide="layers"></i>
+                        <span id="routeFloorsText">1 floor</span>
+                    </div>
+                </div>
+                <div id="routeSteps" class="route-steps"></div>
+                <button id="cancelRouteBtn" class="cancel-btn">
+                    <i data-lucide="x"></i> Cancel Navigation
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="userToast"></div>
+
+    <script type="importmap">
+    {
+      "imports": {
+        "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm"
+      }
+    }
+    </script>
+    
+    <!-- Dependencies from admin (read-only reuse) -->
+    <script src="./state.js?v=4"></script>
+    <script src="./corridor.js?v=4"></script>
+    <script>
+      // Stub admin-only DOM functions that pathfinder.js calls
+      window.clearPathHighlights = window.clearPathHighlights || (() => {});
+      window.renderAll = window.renderAll || (() => {});
+      window.showToast = window.showToast || (() => {});
+    </script>
+    <script src="./pathfinder.js?v=4"></script>
+
+    <!-- User Mode Modules -->
+    <script src="user_renderer.js?v=4"></script>
+    <script src="user_touch.js?v=4"></script>
+    <script src="user_ui.js?v=4"></script>
+    <script type="module" src="user.js?v=4"></script>
+
+    <!-- Modal for Manual Start Location Entry -->
+    <div class="modal-overlay hidden" id="startLocationModal">
+        <div class="modal futuristic-modal" style="width:380px; max-width:90vw;">
+            <div class="modal-header">
+                <h2><i data-lucide="map-pin" class="modal-title-icon"></i> Set Start Location</h2>
+                <button class="modal-close-btn" id="closeStartLocationModalBtn"><i data-lucide="x"></i></button>
+            </div>
+            <p class="modal-subtitle">
+                Search or select your starting location on the map.
+            </p>
+            
+            <div class="modal-search-wrapper">
+                <i data-lucide="search" class="modal-search-icon"></i>
+                <input type="text" id="startLocationSearchInput" placeholder="Type to search location..." autocomplete="off" />
+            </div>
+
+            <div class="modal-list-container" id="startLocationSearchList">
+                <!-- Clickable list items populated dynamically -->
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-cancel" id="cancelStartLocationBtn">Cancel</button>
+                <button class="btn-confirm primary disabled" id="confirmStartLocationBtn" disabled>Confirm</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
